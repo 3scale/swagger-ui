@@ -275,11 +275,30 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
         error_free = false;
       }
     });
+    form.find('select.required').each(function() {
+      $(this).removeClass('error');
+      if (this.selectedIndex === -1) {
+        $(this).addClass('error');
+        $(this).wiggle({
+          callback: (function(_this) {
+            return function() {
+              $(_this).focus();
+            };
+          })(this)
+        });
+        error_free = false;
+      }
+    });
     if (error_free) {
       map = {};
       opts = {
         parent: this
       };
+      if(this.options.swaggerOptions) {
+        for(var key in this.options.swaggerOptions) {
+          opts[key] = this.options.swaggerOptions[key];
+        }
+      }
       isFileUpload = false;
       ref1 = form.find('input');
       for (l = 0, len = ref1.length; l < len; l++) {
@@ -295,8 +314,9 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
       ref2 = form.find('textarea');
       for (m = 0, len1 = ref2.length; m < len1; m++) {
         o = ref2[m];
-        if ((o.value !== null) && jQuery.trim(o.value).length > 0) {
-          map[o.name] = o.value;
+        val = this.getTextAreaValue(o);
+        if ((val !== null) && jQuery.trim(val).length > 0) {
+          map[o.name] = val;
         }
       }
       ref3 = form.find('select');
@@ -325,7 +345,7 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
   // Note: This is compiled code
   // TODO: Refactor
   handleFileUpload: function(map, form) {
-    var bodyParam, el, headerParams, l, len, len1, len2, len3, m, n, o, obj, p, param, params, ref1, ref2, ref3, ref4;
+    var bodyParam, el, headerParams, l, len, len1, len2, len3, m, n, o, p, param, params, ref1, ref2, ref3, ref4;
     ref1 = form.serializeArray();
     for (l = 0, len = ref1.length; l < len; l++) {
       o = ref1[l];
@@ -363,7 +383,9 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
     this.invocationUrl = this.model.supportHeaderParams() ? (headerParams = this.model.getHeaderParams(map), delete headerParams['Content-Type'], this.model.urlify(map, false)) : this.model.urlify(map, true);
     $('.request_url', $(this.el)).html('<pre></pre>');
     $('.request_url pre', $(this.el)).text(this.invocationUrl);
-    obj = {
+
+    // TODO: don't use jQuery. Use SwaggerJS for handling the call.
+    var obj = {
       type: this.model.method,
       url: this.invocationUrl,
       headers: headerParams,
@@ -387,9 +409,6 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
         };
       })(this)
     };
-    if (window.authorizations) {
-      window.authorizations.apply(obj);
-    }
     jQuery.ajax(obj);
     return false;
     // end of file-upload nastiness
@@ -550,6 +569,7 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
       url = response.request.url;
     }
     var headers = response.headers;
+    content = jQuery.trim(content);
 
     // if server is nice, and sends content-type back, we can use it
     var contentType = null;
@@ -594,6 +614,12 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
       code = $('<code />').html(_.escape(content));
       pre = $('<pre class="xml" />').append(code);
 
+    // Plain Text
+    } else if (/text\/plain/.test(contentType)) {
+      code = $('<code />').text(content);
+      pre = $('<pre class="plain" />').append(code);
+
+
     // Image
     } else if (/^image\//.test(contentType)) {
       pre = $('<img>').attr('src', url);
@@ -603,10 +629,10 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
       pre = $('<audio controls>').append($('<source>').attr('src', url).attr('type', contentType));
 
     // Download
-    } else if (headers['Content-Disposition'].test(/attachment/) ||
-               headers['content-disposition'].test(/attachment/) ||
-               headers['Content-Description'].test(/File Transfer/) ||
-               headers['content-description'].test(/File Transfer/)) {
+    } else if (headers['Content-Disposition'] && (/attachment/).test(headers['Content-Disposition']) ||
+               headers['content-disposition'] && (/attachment/).test(headers['content-disposition']) ||
+               headers['Content-Description'] && (/File Transfer/).test(headers['Content-Description']) ||
+               headers['content-description'] && (/File Transfer/).test(headers['content-description'])) {
 
       if ('Blob' in window) {
         var type = contentType || 'text/html';
@@ -661,5 +687,38 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
     } else {
       Docs.expandOperation(elem);
     }
+  },
+
+  getTextAreaValue: function(textArea) {
+    var param, parsed, result, i;
+    if (textArea.value === null || jQuery.trim(textArea.value).length === 0) {
+      return null;
+    }
+    param = this.getParamByName(textArea.name);
+    if (param && param.type && param.type.toLowerCase() === 'array') {
+      parsed = textArea.value.split('\n');
+      result = [];
+      for (i = 0; i < parsed.length; i++) {
+        if (parsed[i] !== null && jQuery.trim(parsed[i]).length > 0) {
+          result.push(parsed[i]);
+        }
+      }
+      return result.length > 0 ? result : null;
+    } else {
+      return textArea.value;
+    }
+  },
+
+  getParamByName: function(name) {
+    var i;
+    if (this.model.parameters) {
+      for(i = 0; i < this.model.parameters.length; i++) {
+        if (this.model.parameters[i].name === name) {
+          return this.model.parameters[i];
+        }
+      }
+    }
+    return null;
   }
+
 });
