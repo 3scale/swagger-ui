@@ -660,9 +660,11 @@ SwaggerUi.Views.OperationView = Backbone.View.extend({
       code = $('<code />').text(content);
       pre = $('<pre class="json" />').append(code);
     }
+
     var response_body = pre;
     $('.request_url', $(this.el)).html('<pre></pre>');
     $('.request_url pre', $(this.el)).text(url);
+    $('.request_curl', $(this.el)).html(new SwaggerUi.Views.CurlView({tagName: 'pre', url: url, operation: this}).render().el);
     $('.response_code', $(this.el)).html('<pre>' + response.status + '</pre>');
     $('.response_body', $(this.el)).html(response_body);
     $('.response_headers', $(this.el)).html('<pre>' + _.escape(JSON.stringify(response.headers, null, '  ')).replace(/\n/g, '<br>') + '</pre>');
