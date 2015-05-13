@@ -30,18 +30,18 @@ SwaggerUi.Views.CurlView = Backbone.View.extend({
     this.params = {header: [], form: [], body: []};
 
     var contentType = $('div select[name=parameterContentType]', $(this.parent)).val();
-
     if(contentType) {
-      this.params.header.push('-H "Content-Type:' + contentType + '"');
+      this.params.header.push('-H "Content-Type: ' + contentType + '"');
+    }
+
+    var accept = $('div select[name=responseContentType]', $(this.parent)).val();
+    if(accept) {
+      this.params.header.push('-H "Accept: ' + accept + '"');
     }
 
     _.each(this.model.parameters, function(parameter) {
 
-      // console.log('> processing parameter: ', parameter);
-
       var field = $('input[name='+parameter.name+'], textarea[name='+parameter.name+']', $(this.parent));
-
-      // console.log('> got field: ', field);
 
       if(field.length && field[0] !== 'undefined' && $.trim(field[0].value) !== '') {
 
